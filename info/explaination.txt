@@ -1,0 +1,45 @@
+#Use of following AWS services for architecture
+- Sagemaker:.
+             Supports PyTorch ResNet50 via pre-packaged container.
+             Autoscaling policies: Scale-up, Scale-down
+             Fault tolerance: Spread containers across AZ, SageMaker ensures health checks and restarts.
+
+-S3:   
+      Tarred ResNet50 stored in encrypted (SSE-S3 or SSE-KMS) S3.
+      lifecycle policy 
+      Bucket policy only accessible by SageMaker role.
+
+- API Gateway: 
+              Publicly exposed HTTPS endpoint
+              Throttling: 1000 req/s with burst
+
+-vpc:
+     VPC endpoints for S3 and SageMaker to route in-VPC securely
+
+-Cloud Watch:
+             SageMaker inference logs (invocation count, model errors).
+             Lambda, API Gateway, VPC Flow logs
+             Alarms and dashboard
+
+#Fault Tolerance & HA
+SageMaker’s multi-AZ endpoint ensures no single-AZ failure.
+ASG-like autoscaling across containers.
+Lambda + API Gateway are AWS-managed HA.
+S3 durability > 99.999999999%.
+Regular backups (versioning enabled in S3).
+
+#Monthly Cost
+Component	                                                      Monthly Cost
+SageMaker Endpoint	                          ml.m5.xlarge (4 vCPU, 16 GB): ~$0.192/hr → ~$140/mo (720 hr)
+S3 Storage	                                  < 50 GB + ~300 GB/month transfer: ~$10–15
+API Gateway	                                  1M requests/month: ~$3.50
+Lambda	                                          3M invocations/month at 200ms, 512MB: ~$20
+CloudWatch	                                  Metrics/logs ~10 GB/month: ~$25
+Total	                                          ≈ $200–220/month
+
+# Optimizations
+-Serverless: For low‑traffic periods, dynamically switch to SageMaker Serverless→ zero‑RT provisioning.
+-Spot instances with SageMaker Managed Spot for dev/test endpoints.
+-Batch endpoint for backend classification pipelines (cheaper infrequent loads).
+-Model layer caching to reduce cold-start latency.
+-S3 intelligent‑tiering for rarely accessed payloads.
